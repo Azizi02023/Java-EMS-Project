@@ -1,6 +1,6 @@
-package com.example.demo.config; // Use your correct package name
+package com.example.demo.config;
 
-import com.example.demo.security.CustomAuthenticationSuccessHandler; // 1. IMPORT the new handler
+import com.example.demo.security.CustomAuthenticationSuccessHandler;
 import com.example.demo.security.MyUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -21,7 +21,6 @@ public class SecurityConfig {
     @Autowired
     private MyUserDetailsService userDetailsService;
 
-    // 2. INJECT your new custom handler
     @Autowired
     private CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
 
@@ -32,6 +31,8 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
+        // --- FIX IS HERE ---
+        // New Spring Security requires UserDetailsService in the constructor
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
@@ -40,29 +41,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 1. Disable CSRF for the Upload Endpoint to prevent premature parsing crash
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/employees/saveEmployee")
+                )
                 .authorizeHttpRequests(authz -> authz
-
-                        // This part allows CSS, JS, etc. to load
-                        .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-
-                        // You MUST permit access to the login page itself.
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**").permitAll()
                         .requestMatchers("/login", "/register", "/access-denied").permitAll()
-
-                        // All other pages require a login
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
-                        // This line tells security WHERE your login page is
                         .loginPage("/login")
-                        // 3. USE THE HANDLER instead of defaultSuccessUrl
                         .successHandler(customAuthenticationSuccessHandler)
-                        // .defaultSuccessUrl("/employees", true) // <-- This is replaced
-                        .permitAll() // This also helps permit the form processing
+                        .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .accessDeniedPage("/access-denied")
                 );
 
         return http.build();

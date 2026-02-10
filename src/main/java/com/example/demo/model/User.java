@@ -1,7 +1,9 @@
 package com.example.demo.model;
 
-import lombok.Data;
 import jakarta.persistence.*;
+import lombok.Data;
+import com.example.demo.model.Role;
+
 import java.util.HashSet;
 import java.util.Set;
 

@@ -6,11 +6,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import org.springframework.web.multipart.MultipartFile; // Import added
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
-
 @Entity
 @Table(name = "employees")
 public class Employee {
@@ -41,4 +42,18 @@ public class Employee {
     @NotNull(message = "Hire date cannot be null")
     @Column(name = "hire_date")
     private LocalDate hireDate;
+
+    // --- DATABASE FIELDS (Store Filenames) ---
+    @Column(name = "profile_image")
+    private String profileImage;
+
+    @Column(name = "document")
+    private String document;
+
+    // --- FORM FIELDS (Transient - Not stored in DB) ---
+    @Transient
+    private MultipartFile imageFile;
+
+    @Transient
+    private MultipartFile docFile;
 }
