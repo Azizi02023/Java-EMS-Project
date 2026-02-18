@@ -4,23 +4,19 @@ import lombok.Data;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction; // Change this import
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * Employee Entity representing the 'employees' table.
- * Includes Soft Delete logic and File Storage fields.
- */
 @Data
 @Entity
 @Table(name = "employees")
-// 1. Convert any 'delete' call into an 'update' that sets deleted=true
+// 1. Keeps your manual Soft Delete logic
 @SQLDelete(sql = "UPDATE employees SET deleted = true WHERE id=?")
-// 2. Automatically filter out records where deleted=true in all select queries
-@Where(clause = "deleted=false")
+// 2. REPLACEMENT for @Where: Automatically filters out deleted records
+@SQLRestriction("deleted = false")
 public class Employee {
 
     @Id
@@ -57,14 +53,14 @@ public class Employee {
     @Column(name = "hire_date")
     private LocalDate hireDate;
 
-    // --- DATABASE FIELDS (Stores the file paths/names) ---
+    // --- DATABASE FIELDS (Store Filenames) ---
     @Column(name = "profile_image")
     private String profileImage;
 
     @Column(name = "document")
     private String document;
 
-    // --- FORM FIELDS (Transient - These are NOT stored in the database) ---
+    // --- FORM FIELDS (Transient - Not stored in DB) ---
     @Transient
     private MultipartFile imageFile;
 
