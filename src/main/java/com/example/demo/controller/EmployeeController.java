@@ -21,22 +21,29 @@ public class EmployeeController {
     private EmployeeService employeeService;
 
     @GetMapping
-    public String viewEmployeeList(Model model, @PageableDefault(size = 5) Pageable pageable) {
-        // Page<EmployeeDTO> is returned from the updated service
-        Page<EmployeeDTO> employeePage = employeeService.getAllEmployees(pageable);
+    public String viewEmployeeList(@RequestParam(value = "keyword", required = false) String keyword,
+                                   Model model,
+                                   @PageableDefault(size = 5, sort = "firstName") Pageable pageable) {
+
+        Page<EmployeeDTO> employeePage;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            employeePage = employeeService.searchEmployees(keyword, pageable);
+            model.addAttribute("keyword", keyword);
+        } else {
+            employeePage = employeeService.getAllEmployees(pageable);
+        }
+
         model.addAttribute("employeePage", employeePage);
         return "list-employees";
     }
 
     @GetMapping("/showNewEmployeeForm")
-    // REMOVED @PreAuthorize because browser links cannot send JWT headers
     public String showNewEmployeeForm(Model model) {
         model.addAttribute("employee", new EmployeeDTO());
         return "add-employee-form";
     }
 
-    @PostMapping("/saveEmployee")
-    // Security will be handled by the JavaScript 'fetch' call sending the token
+    @PostMapping("/save")
     public String saveEmployee(@Valid @ModelAttribute("employee") EmployeeDTO employee,
                                BindingResult bindingResult,
                                RedirectAttributes redirectAttributes) {
@@ -65,10 +72,21 @@ public class EmployeeController {
     @GetMapping("/deleteEmployee/{id}")
     public String deleteEmployee(@PathVariable(value = "id") Long id, RedirectAttributes redirectAttributes) {
         try {
-            this.employeeService.deleteEmployeeById(id);
+            employeeService.deleteEmployeeById(id);
             redirectAttributes.addFlashAttribute("successMessage", "Employee deleted successfully!");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "Error: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Error deleting employee: " + e.getMessage());
+        }
+        return "redirect:/employees";
+    }
+
+    @GetMapping("/restoreEmployee/{id}")
+    public String restoreEmployee(@PathVariable(value = "id") Long id, RedirectAttributes redirectAttributes) {
+        try {
+            employeeService.restoreEmployee(id);
+            redirectAttributes.addFlashAttribute("successMessage", "Employee restored successfully!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("errorMessage", "Error restoring employee: " + e.getMessage());
         }
         return "redirect:/employees";
     }
