@@ -13,6 +13,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDate; // Ensure this import is present
+
 @Controller
 @RequestMapping("/employees")
 public class EmployeeController {
@@ -24,7 +26,6 @@ public class EmployeeController {
     public String viewEmployeeList(@RequestParam(value = "keyword", required = false) String keyword,
                                    Model model,
                                    @PageableDefault(size = 5, sort = "firstName") Pageable pageable) {
-
         Page<EmployeeDTO> employeePage;
         if (keyword != null && !keyword.trim().isEmpty()) {
             employeePage = employeeService.searchEmployees(keyword, pageable);
@@ -32,14 +33,16 @@ public class EmployeeController {
         } else {
             employeePage = employeeService.getAllEmployees(pageable);
         }
-
         model.addAttribute("employeePage", employeePage);
         return "list-employees";
     }
 
     @GetMapping("/showNewEmployeeForm")
     public String showNewEmployeeForm(Model model) {
-        model.addAttribute("employee", new EmployeeDTO());
+        EmployeeDTO employeeDTO = new EmployeeDTO();
+        // FIXED: Set the hire date before adding to the model
+        employeeDTO.setHireDate(LocalDate.now());
+        model.addAttribute("employee", employeeDTO);
         return "add-employee-form";
     }
 
@@ -47,24 +50,27 @@ public class EmployeeController {
     public String saveEmployee(@Valid @ModelAttribute("employee") EmployeeDTO employee,
                                BindingResult bindingResult,
                                RedirectAttributes redirectAttributes) {
-
         if (bindingResult.hasErrors()) {
             return employee.getId() != null ? "edit-employee-form" : "add-employee-form";
         }
-
         try {
             employeeService.saveEmployee(employee, employee.getImageFile(), employee.getDocFile());
             redirectAttributes.addFlashAttribute("successMessage", "Employee saved successfully!");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", "Error saving employee: " + e.getMessage());
         }
-
         return "redirect:/employees";
     }
 
     @GetMapping("/showFormForUpdate/{id}")
     public String showFormForUpdate(@PathVariable(value = "id") Long id, Model model) {
         EmployeeDTO employee = employeeService.getEmployeeById(id);
+
+        // FIXED: Ensure the hire date is pre-filled if it was null in the database
+        if (employee.getHireDate() == null) {
+            employee.setHireDate(LocalDate.now());
+        }
+
         model.addAttribute("employee", employee);
         return "edit-employee-form";
     }
