@@ -1,10 +1,8 @@
 package com.example.demo.config;
 
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import com.example.demo.security.jwt.AuthEntryPointJwt;
 import com.example.demo.security.jwt.AuthTokenFilter;
 import com.example.demo.security.MyUserDetailsService;
-import com.example.demo.security.CustomAuthenticationSuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +17,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -31,9 +28,6 @@ public class SecurityConfig {
 
     @Autowired
     private AuthEntryPointJwt unauthorizedHandler;
-
-    @Autowired
-    private CustomAuthenticationSuccessHandler successHandler;
 
     @Bean
     public AuthTokenFilter authenticationJwtTokenFilter() {
@@ -52,7 +46,6 @@ public class SecurityConfig {
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-        // FIXED: Spring Security 7+ requires UserDetailsService in the constructor
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
@@ -60,32 +53,26 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        // Define the repository explicitly to ensure sessions work across redirects
-        HttpSessionSecurityContextRepository repo = new HttpSessionSecurityContextRepository();
-
         http
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
-                .securityContext(context -> context.securityContextRepository(repo)) // Use the repo
+                .csrf(csrf -> csrf.disable())
                 .exceptionHandling(exception -> exception
-                        .defaultAuthenticationEntryPointFor(unauthorizedHandler,
-                                request -> request.getServletPath().startsWith("/api/"))
+                        .authenticationEntryPoint(unauthorizedHandler)
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/login", "/error", "/css/**", "/js/**", "/uploads/**").permitAll()
+                        // ✅ Public endpoints (NO authentication required)
+                        .requestMatchers("/api/auth/**").permitAll()      // Login/register API
+                        .requestMatchers("/login", "/error").permitAll()  // ✅ Login PAGE (static HTML)
+                        .requestMatchers("/css/**", "/js/**", "/uploads/**").permitAll()
+
+                        // ✅ Protected endpoints (JWT required)
                         .requestMatchers("/employees/**", "/attendance/**", "/audit-logs/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
-                        .loginPage("/login")
-                        .successHandler(successHandler)
-                        .permitAll()
-                )
-                .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll());
+                .authenticationProvider(authenticationProvider());
 
-        http.authenticationProvider(authenticationProvider());
-
-        // Ensure the JWT filter is ONLY run after basic security setup
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
