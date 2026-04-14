@@ -43,34 +43,34 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     @Transactional
-    public void saveEmployee(EmployeeDTO dto, MultipartFile imageFile, MultipartFile docFile) {
-        try {
-            Employee employee = (dto.getId() != null)
-                    ? employeeRepository.findById(dto.getId()).orElse(new Employee())
-                    : new Employee();
+    public void saveEmployee(EmployeeDTO dto) {
 
-            employee.setFirstName(dto.getFirstName());
-            employee.setLastName(dto.getLastName());
-            employee.setEmail(dto.getEmail());
-            employee.setPhone(dto.getPhone());
-            employee.setDepartment(dto.getDepartment());
-            employee.setPosition(dto.getPosition());
-            employee.setSalary(dto.getSalary());
-            employee.setHireDate(dto.getHireDate());
+        Employee employee = (dto.getId() != null)
+                ? employeeRepository.findById(dto.getId()).orElse(new Employee())
+                : new Employee();
 
-            if (imageFile != null && !imageFile.isEmpty()) {
-                employee.setProfileImage(fileStorageService.storeFile(imageFile));
-            }
-            if (docFile != null && !docFile.isEmpty()) {
-                employee.setDocument(fileStorageService.storeFile(docFile));
-            }
+        // Set fields
+        employee.setFirstName(dto.getFirstName());
+        employee.setLastName(dto.getLastName());
+        employee.setEmail(dto.getEmail());
+        employee.setPhone(dto.getPhone());
+        employee.setDepartment(dto.getDepartment());
+        employee.setPosition(dto.getPosition());
+        employee.setSalary(dto.getSalary());
+        employee.setHireDate(dto.getHireDate());
 
-            employeeRepository.save(employee);
-            log.info("Successfully saved employee: {}", employee.getEmail());
-        } catch (Exception e) {
-            log.error("Failed to save employee: {}", e.getMessage());
-            throw e;
-        }
+        // CLEAN FILE HANDLING
+        employee.setProfileImage(
+                fileStorageService.storeFile(dto.getImageFile(), employee.getProfileImage())
+        );
+
+        employee.setDocument(
+                fileStorageService.storeFile(dto.getDocFile(), employee.getDocument())
+        );
+
+        employeeRepository.save(employee);
+
+        log.info("Successfully saved employee: {}", employee.getEmail());
     }
 
     @Override

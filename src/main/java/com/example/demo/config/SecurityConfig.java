@@ -51,23 +51,29 @@ public class SecurityConfig {
         return authProvider;
     }
 
+    // SecurityConfig.java
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                // For cookie-based JWT: CSRF must be enabled for state-changing requests
+                // But we can ignore it for API endpoints that use Authorization header
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/api/auth/**")  // Login/logout via API
+                        .ignoringRequestMatchers("/api/**")        // Optional: if using header-based JWT for APIs
+                )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(unauthorizedHandler)
                 )
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)  // ✅ No HTTP sessions
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // ✅ Public endpoints (NO authentication required)
-                        .requestMatchers("/api/auth/**").permitAll()      // Login/register API
-                        .requestMatchers("/login", "/error").permitAll()  // ✅ Login PAGE (static HTML)
-                        .requestMatchers("/css/**", "/js/**", "/uploads/**").permitAll()
+                        // Public endpoints
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/login", "/error").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/uploads/**", "/images/**").permitAll()
 
-                        // ✅ Protected endpoints (JWT required)
+                        // Protected endpoints (JWT via cookie or header)
                         .requestMatchers("/employees/**", "/attendance/**", "/audit-logs/**").authenticated()
                         .anyRequest().authenticated()
                 )

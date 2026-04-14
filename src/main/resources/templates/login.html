@@ -116,7 +116,7 @@
             <span id="errorMessage">Invalid credentials. Please try again.</span>
         </div>
 
-        <!-- ✅ CHANGED: Removed th:action and method, added id for JS -->
+        <!-- ✅ Form handled by JavaScript (no th:action) -->
         <form id="loginForm">
             <div class="mb-3">
                 <label for="username" class="form-label small fw-semibold">Username</label>
@@ -147,10 +147,10 @@
     </div>
 </div>
 
-<!-- ✅ NEW: JavaScript to handle JWT login -->
+<!-- ✅ UPDATED: JavaScript for JWT + HTTP-Only Cookie Login -->
 <script>
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
-        e.preventDefault(); // ❌ Stop traditional form submit
+        e.preventDefault(); // Stop traditional form submit
 
         const btn = document.getElementById('loginBtn');
         const spinner = document.getElementById('loginSpinner');
@@ -168,30 +168,35 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // ✅ Call JWT API endpoint
+            // ✅ Call JWT API endpoint WITH credentials: 'include' (critical for cookies!)
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password }),
+                credentials: 'include'  // 🔑 Allows browser to send/receive HTTP-only cookies
             });
 
             const data = await response.json();
 
             if (response.ok && data.token) {
-                // ✅ Success: Save token and redirect
-                localStorage.setItem('jwt_token', data.token);
-                localStorage.setItem('user', JSON.stringify({
-                    username: data.username,
-                    roles: data.roles
-                }));
+                // ✅ Cookie is automatically set by server - NO localStorage needed!
+                // More secure: token can't be accessed by JavaScript (XSS protection)
 
-                // Redirect to dashboard or employees page
+                // Optional: Save non-sensitive user info for UI display
+                if (data.username) {
+                    sessionStorage.setItem('current_user', JSON.stringify({
+                        username: data.username,
+                        roles: data.roles
+                    }));
+                }
+
+                // Redirect to protected page - browser auto-sends jwt cookie
                 window.location.href = '/employees';
 
             } else {
-                // ❌ Show error from API
+                // Show error from API response
                 throw new Error(data.message || 'Login failed');
             }
 
@@ -208,12 +213,23 @@
         }
     });
 
-    // Optional: Check if user is already logged in
-    document.addEventListener('DOMContentLoaded', function() {
-        const token = localStorage.getItem('jwt_token');
-        if (token) {
-            // Optionally verify token is still valid, or just redirect
-            window.location.href = '/employees';
+    // ✅ Auto-redirect if user already has valid session (via cookie)
+    document.addEventListener('DOMContentLoaded', async function() {
+        try {
+            // Lightweight check: try to fetch current user info
+            const response = await fetch('/api/auth/me', {
+                method: 'GET',
+                credentials: 'include'  // Send jwt cookie if it exists
+            });
+
+            if (response.ok) {
+                // User is authenticated - skip login page
+                window.location.href = '/employees';
+            }
+            // If 401, stay on login page (user needs to authenticate)
+        } catch (e) {
+            // Network error or endpoint doesn't exist - stay on login page
+            console.log('Session check skipped:', e.message);
         }
     });
 </script>

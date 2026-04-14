@@ -6,10 +6,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface EmployeeService {
+
     Page<EmployeeDTO> getAllEmployees(Pageable pageable);
+
     EmployeeDTO getEmployeeById(Long id);
-    void saveEmployee(EmployeeDTO dto, MultipartFile imageFile, MultipartFile docFile);
+
+    void saveEmployee(EmployeeDTO dto); //CLEAN
+
     void deleteEmployeeById(Long id);
+
     void restoreEmployee(Long id);
+
     Page<EmployeeDTO> searchEmployees(String keyword, Pageable pageable);
 }
